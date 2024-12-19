@@ -3,7 +3,6 @@
 import toast from 'react-hot-toast';
 import { app, ipcMain, BrowserWindow } from 'electron';
 import treeKill from 'tree-kill';
-import path from 'path';
 import settings from 'electron-settings';
 import log from 'electron-log';
 import fs from 'fs';
@@ -14,64 +13,23 @@ import { logMetadata, logPath } from './log';
 import { getUserSettings, handleWpErrors } from '../lib/wp';
 import { defaultSettings } from '../../defaultSettings';
 import { customEvent } from '../lib/customEvent';
-import { regeditVbsDirPath } from '../main';
 import { showWpLogs } from '../dxConfig';
 import { getTranslate } from '../../localization';
-import SingBoxManager from '../lib/sbManager';
-import NetworkMonitor from '../lib/netStatsManager';
+
+import {
+    wpAssetPath,
+    wpBinPath,
+    workingDirPath,
+    regeditVbsDirPath,
+    singBoxManager,
+    networkMonitor
+} from '../constants';
 
 const simpleLog = log.create({ logId: 'simpleLog' });
 simpleLog.transports.console.format = '{text}';
 simpleLog.transports.file.format = '{text}';
 
 let child: any;
-
-export const wpFileName = `warp-plus${process.platform === 'win32' ? '.exe' : ''}`;
-export const sbAssetFileName = `sing-box${process.platform === 'win32' ? '.exe' : ''}`;
-export const sbWDFileName = `oblivion-sb${process.platform === 'win32' ? '.exe' : ''}`;
-export const helperFileName = `oblivion-helper${process.platform === 'win32' ? '.exe' : ''}`;
-export const netStatsFileName = `zag-netStats${process.platform === 'win32' ? '.exe' : ''}`;
-export const sbConfigName = 'sbConfig.json';
-
-export const wpAssetPath = path.join(
-    app.getAppPath().replace('/app.asar', '').replace('\\app.asar', ''),
-    'assets',
-    'bin',
-    wpFileName
-);
-export const sbAssetPath = path.join(
-    app.getAppPath().replace('/app.asar', '').replace('\\app.asar', ''),
-    'assets',
-    'bin',
-    'sing-box',
-    sbAssetFileName
-);
-export const helperAssetPath = path.join(
-    app.getAppPath().replace('/app.asar', '').replace('\\app.asar', ''),
-    'assets',
-    'bin',
-    helperFileName
-);
-export const netStatsAssetPath = path.join(
-    app.getAppPath().replace('/app.asar', '').replace('\\app.asar', ''),
-    'assets',
-    'bin',
-    netStatsFileName
-);
-export const protoAssetPath = path.join(
-    app.getAppPath().replace('/app.asar', '').replace('\\app.asar', ''),
-    'assets',
-    'proto',
-    'oblivion.proto'
-);
-
-export const wpDirPath = path.join(app.getPath('userData'));
-export const wpBinPath = path.join(wpDirPath, wpFileName);
-export const stuffPath = path.join(wpDirPath, 'stuff');
-export const sbBinPath = path.join(wpDirPath, sbWDFileName);
-export const sbConfigPath = path.join(wpDirPath, sbConfigName);
-export const helperPath = path.join(wpDirPath, helperFileName);
-export const netStatsPath = path.join(wpDirPath, netStatsFileName);
 
 export const restartApp = () => {
     const maxRetries = 2;
@@ -102,18 +60,6 @@ export const restartApp = () => {
     };
     setTimeout(attemptRestart, 5000);
 };
-
-export const singBoxManager = new SingBoxManager(
-    helperPath,
-    helperFileName,
-    sbWDFileName,
-    sbConfigName,
-    wpFileName,
-    wpDirPath,
-    protoAssetPath
-);
-
-const networkMonitor = new NetworkMonitor(netStatsPath, wpDirPath);
 
 let exitOnWpEnd = false;
 
@@ -217,14 +163,12 @@ ipcMain.on('wp-start', async (event) => {
         sendConnectedSignalToRenderer();
     }
 
-    const startWP = async () => {
-        const command = path.join(wpDirPath, wpFileName);
-
+    const startWP = () => {
         log.info('starting wp process...');
-        log.info(`${command + ' ' + args.join(' ')}`);
+        log.info(`${wpBinPath + ' ' + args.join(' ')}`);
 
         try {
-            child = spawn(command, args, { cwd: wpDirPath });
+            child = spawn(wpBinPath, args, { cwd: workingDirPath });
             const successMessage = `level=INFO msg="serving proxy" address=${hostIP}`;
             //const endpointMessage = `level=INFO msg="using warp endpoints" endpoints=`;
             //let endpointPorts: number[] = [];
@@ -323,7 +267,7 @@ ipcMain.on('end-wp-and-exit-app', async (event) => {
             ipcMain.emit('exit');
         }
         if (closeHelper) {
-            singBoxManager.stopHelper();
+            await singBoxManager.stopHelper();
         }
     } catch (error) {
         log.error(error);

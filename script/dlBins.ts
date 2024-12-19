@@ -2,7 +2,7 @@ import fs from 'fs';
 import axios from 'axios';
 import decompress from 'decompress';
 import { doesDirectoryExist, doesFileExist } from '../src/main/lib/utils';
-import { sbVersion, wpVersion, helperVersion, geoDBs, netStatsVersion } from '../src/main/config';
+import { sbVersion, wpVersion, helperVersion, netStatsVersion } from '../src/main/config';
 
 const forceDownload = process.argv[2] === 'force';
 const platform = process.argv[3] || process.platform;
@@ -71,7 +71,6 @@ const warpPlusUrlBase = `https://github.com/bepass-org/warp-plus/releases/downlo
 const singBoxUrlBase = `https://github.com/SagerNet/sing-box/releases/download/v${sbVersion}/sing-box-${sbVersion}-`;
 const helperUrlBase = `https://github.com/ShadowZagrosDev/oblivion-helper/releases/download/v${helperVersion}/oblivion-helper-`;
 const netStatsUrlBase = `https://github.com/ShadowZagrosDev/Zag-NetStats/releases/download/v${netStatsVersion}/zag-netStats-`;
-const geoDBsUrlBase = `https://github.com/Chocolate4U/Iran-sing-box-rules/releases/latest/download/`;
 
 const warpPlusUrls: Record<string, Record<string, string>> = {
     linux: {
@@ -137,31 +136,6 @@ const netStatsUrls: Record<string, Record<string, string>> = {
     }
 };
 
-async function downloadGeoDBs() {
-    const dbDirectory = './assets/dbs/';
-    const isDBDirExist = await doesDirectoryExist(dbDirectory);
-
-    if (!isDBDirExist) {
-        fs.mkdirSync(dbDirectory, { recursive: true });
-    }
-
-    // eslint-disable-next-line no-restricted-syntax
-    for (const fileName of geoDBs) {
-        const filePath = `${dbDirectory}${fileName}`;
-        // eslint-disable-next-line no-await-in-loop
-        const isFileExist = await doesFileExist(filePath);
-
-        if (!isFileExist || forceDownload) {
-            // eslint-disable-next-line no-await-in-loop
-            await downloadFile(`${geoDBsUrlBase}${fileName}`, filePath).then(() =>
-                console.log(`✅ ${fileName} is ready to use.`)
-            );
-        } else {
-            console.log(`➡️ Skipping Download as ${fileName} already exists.`);
-        }
-    }
-}
-
 const removeFile = async (filePath: string) => {
     const isExist = await doesFileExist(filePath);
     if (isExist) {
@@ -192,8 +166,6 @@ async function handleDownload() {
         './assets/bin',
         `zag-netStats-v${netStatsVersion}.zip`
     );
-
-    await downloadGeoDBs();
 }
 
 const notSupported = () => console.log('Your platform/architecture is not supported.');

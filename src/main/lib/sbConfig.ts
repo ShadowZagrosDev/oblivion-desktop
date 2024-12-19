@@ -1,29 +1,10 @@
 import fs from 'fs';
 import log from 'electron-log';
-import { sbConfigPath } from '../ipcListeners/wp';
+import { sbConfigPath, sbCacheName } from '../constants';
 import { disableSbLogs } from '../dxConfig';
+import { IConfig, IGeoConfig, IRoutingRules } from './sbManager';
 
-export function createSbConfig(
-    socksPort: number,
-    mtu: number,
-    geoBlock: boolean,
-    geoIp: string,
-    geoSite: string,
-    ipSet: string[],
-    domainSet: string[],
-    domainSuffixSet: string[],
-    processSet: string[]
-) {
-    if (
-        socksPort === undefined ||
-        mtu === undefined ||
-        geoBlock === undefined ||
-        geoIp === undefined ||
-        geoSite === undefined
-    ) {
-        throw new Error('some required parameters are undefined');
-    }
-
+export function createSbConfig(config: IConfig, geoConfig: IGeoConfig, rulesConfig: IRoutingRules) {
     const logConfig = disableSbLogs
         ? { disabled: true }
         : {
@@ -33,7 +14,7 @@ export function createSbConfig(
               output: 'sing-box.log'
           };
 
-    const config = {
+    const configuration = {
         log: logConfig,
         dns: {
             final: 'dns-remote',
@@ -44,7 +25,7 @@ export function createSbConfig(
                     outbound: ['any'],
                     server: 'dns-direct'
                 },
-                ...(geoBlock
+                ...(geoConfig.geoBlock
                     ? [
                           {
                               rule_set: [
@@ -60,10 +41,10 @@ export function createSbConfig(
                           }
                       ]
                     : []),
-                ...(geoSite !== 'none'
+                ...(geoConfig.geoSite !== 'none'
                     ? [
                           {
-                              rule_set: `geosite-${geoSite}`,
+                              rule_set: `geosite-${geoConfig.geoSite}`,
                               server: 'dns-direct'
                           }
                       ]
@@ -99,13 +80,13 @@ export function createSbConfig(
             {
                 type: 'tun',
                 tag: 'tun-in',
-                mtu: mtu,
+                mtu: config.tunMtu,
                 address: ['172.19.0.1/30', 'fdfe:dcba:9876::1/126'],
                 auto_route: true,
                 strict_route: true,
                 stack: 'mixed',
-                sniff: process.platform === 'darwin' ? true : false,
-                sniff_override_destination: process.platform === 'darwin' ? true : false
+                sniff: process.platform === 'darwin',
+                sniff_override_destination: process.platform === 'darwin'
             }
         ],
         outbounds: [
@@ -113,7 +94,7 @@ export function createSbConfig(
                 type: 'socks',
                 tag: 'socks-out',
                 server: '127.0.0.1',
-                server_port: socksPort,
+                server_port: config.socksPort,
                 version: '5'
             },
             {
@@ -151,55 +132,55 @@ export function createSbConfig(
                     ip_is_private: true,
                     outbound: 'direct-out'
                 },
-                ...(ipSet.length > 0
+                ...(rulesConfig.ipSet.length > 0
                     ? [
                           {
-                              ip_cidr: ipSet,
+                              ip_cidr: rulesConfig.ipSet,
                               outbound: 'direct-out'
                           }
                       ]
                     : []),
-                ...(domainSet.length > 0
+                ...(rulesConfig.domainSet.length > 0
                     ? [
                           {
-                              domain: domainSet,
+                              domain: rulesConfig.domainSet,
                               outbound: 'direct-out'
                           }
                       ]
                     : []),
-                ...(domainSuffixSet.length > 0
+                ...(rulesConfig.domainSuffixSet.length > 0
                     ? [
                           {
-                              domain_suffix: domainSuffixSet,
+                              domain_suffix: rulesConfig.domainSuffixSet,
                               outbound: 'direct-out'
                           }
                       ]
                     : []),
-                ...(processSet.length > 0
+                ...(rulesConfig.processSet.length > 0
                     ? [
                           {
-                              process_name: processSet,
+                              process_name: rulesConfig.processSet,
                               outbound: 'direct-out'
                           }
                       ]
                     : []),
-                ...(geoIp !== 'none'
+                ...(geoConfig.geoIp !== 'none'
                     ? [
                           {
-                              rule_set: `geoip-${geoIp}`,
+                              rule_set: `geoip-${geoConfig.geoIp}`,
                               outbound: 'direct-out'
                           }
                       ]
                     : []),
-                ...(geoSite !== 'none'
+                ...(geoConfig.geoSite !== 'none'
                     ? [
                           {
-                              rule_set: `geosite-${geoSite}`,
+                              rule_set: `geosite-${geoConfig.geoSite}`,
                               outbound: 'direct-out'
                           }
                       ]
                     : []),
-                ...(geoBlock
+                ...(geoConfig.geoBlock
                     ? [
                           {
                               rule_set: [
@@ -216,63 +197,79 @@ export function createSbConfig(
                     : [])
             ],
             rule_set: [
-                ...(geoIp !== 'none'
+                ...(geoConfig.geoIp !== 'none'
                     ? [
                           {
-                              tag: `geoip-${geoIp}`,
-                              type: 'local',
-                              format: 'source',
-                              path: `geoip-${geoIp}.json`
+                              tag: `geoip-${geoConfig.geoIp}`,
+                              type: 'remote',
+                              format: 'binary',
+                              url: `https://raw.githubusercontent.com/Chocolate4U/Iran-sing-box-rules/rule-set/geoip-${geoConfig.geoIp}.srs`,
+                              download_detour: 'direct-out',
+                              update_interval: '3d'
                           }
                       ]
                     : []),
-                ...(geoSite !== 'none'
+                ...(geoConfig.geoSite !== 'none'
                     ? [
                           {
-                              tag: `geosite-${geoSite}`,
-                              type: 'local',
-                              format: 'source',
-                              path: `geosite-${geoSite}.json`
+                              tag: `geosite-${geoConfig.geoSite}`,
+                              type: 'remote',
+                              format: 'binary',
+                              url: `https://raw.githubusercontent.com/Chocolate4U/Iran-sing-box-rules/rule-set/geosite-${geoConfig.geoSite}.srs`,
+                              download_detour: 'direct-out',
+                              update_interval: '3d'
                           }
                       ]
                     : []),
-                ...(geoBlock
+                ...(geoConfig.geoBlock
                     ? [
                           {
                               tag: 'geosite-category-ads-all',
-                              type: 'local',
-                              format: 'source',
-                              path: 'geosite-category-ads-all.json'
+                              type: 'remote',
+                              format: 'binary',
+                              url: 'https://raw.githubusercontent.com/Chocolate4U/Iran-sing-box-rules/rule-set/geosite-category-ads-all.srs',
+                              download_detour: 'direct-out',
+                              update_interval: '3d'
                           },
                           {
                               tag: 'geosite-malware',
-                              type: 'local',
-                              format: 'source',
-                              path: 'geosite-malware.json'
+                              type: 'remote',
+                              format: 'binary',
+                              url: 'https://raw.githubusercontent.com/Chocolate4U/Iran-sing-box-rules/rule-set/geosite-malware.srs',
+                              download_detour: 'direct-out',
+                              update_interval: '3d'
                           },
                           {
                               tag: 'geosite-phishing',
-                              type: 'local',
-                              format: 'source',
-                              path: 'geosite-phishing.json'
+                              type: 'remote',
+                              format: 'binary',
+                              url: 'https://raw.githubusercontent.com/Chocolate4U/Iran-sing-box-rules/rule-set/geosite-phishing.srs',
+                              download_detour: 'direct-out',
+                              update_interval: '3d'
                           },
                           {
                               tag: 'geosite-cryptominers',
-                              type: 'local',
-                              format: 'source',
-                              path: 'geosite-cryptominers.json'
+                              type: 'remote',
+                              format: 'binary',
+                              url: 'https://raw.githubusercontent.com/Chocolate4U/Iran-sing-box-rules/rule-set/geosite-cryptominers.srs',
+                              download_detour: 'direct-out',
+                              update_interval: '3d'
                           },
                           {
                               tag: 'geoip-malware',
-                              type: 'local',
-                              format: 'source',
-                              path: 'geoip-malware.json'
+                              type: 'remote',
+                              format: 'binary',
+                              url: 'https://raw.githubusercontent.com/Chocolate4U/Iran-sing-box-rules/rule-set/geoip-malware.srs',
+                              download_detour: 'direct-out',
+                              update_interval: '3d'
                           },
                           {
                               tag: 'geoip-phishing',
-                              type: 'local',
-                              format: 'source',
-                              path: 'geoip-phishing.json'
+                              type: 'remote',
+                              format: 'binary',
+                              url: 'https://raw.githubusercontent.com/Chocolate4U/Iran-sing-box-rules/rule-set/geoip-phishing.srs',
+                              download_detour: 'direct-out',
+                              update_interval: '3d'
                           }
                       ]
                     : [])
@@ -283,12 +280,12 @@ export function createSbConfig(
         experimental: {
             cache_file: {
                 enabled: true,
-                path: 'sbCache.db',
+                path: sbCacheName,
                 store_fakeip: true
             }
         }
     };
 
-    fs.writeFileSync(sbConfigPath, JSON.stringify(config, null, 2), 'utf-8');
+    fs.writeFileSync(sbConfigPath, JSON.stringify(configuration, null, 2), 'utf-8');
     log.info(`Sing-Box config file has been created at ${sbConfigPath}`);
 }

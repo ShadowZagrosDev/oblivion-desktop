@@ -25,7 +25,7 @@ const useDebug = () => {
             ? localStorage.getItem('OBLIVION_SCROLLER')
             : '0';
     }, []);
-    const [autoScroll, setAutoScroll] = useState<boolean>(initAutoScroll === '1' ? true : false);
+    const [autoScroll, setAutoScroll] = useState<boolean>(initAutoScroll === '1');
 
     useEffect(() => {
         ipcRenderer.on('tray-menu', (args: any) => {

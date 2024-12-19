@@ -3,28 +3,41 @@ import settings from 'electron-settings';
 import log from 'electron-log';
 import { spawn, exec } from 'child_process';
 import fs from 'fs';
-import path from 'path';
 import * as grpc from '@grpc/grpc-js';
 import * as protoLoader from '@grpc/proto-loader';
 import { defaultSettings, singBoxGeoIp, singBoxGeoSite } from '../../defaultSettings';
 import { createSbConfig } from './sbConfig';
 import { customEvent } from './customEvent';
 import { Language } from '../../localization/type';
+import {
+    wpFileName,
+    sbConfigName,
+    sbWDFileName,
+    sbCachePath,
+    helperFileName,
+    helperConfigPath,
+    protoAssetPath,
+    helperPath,
+    workingDirPath
+} from '../constants';
 
 interface ICommand {
     command: string;
     args?: string[];
 }
 
-interface IConfig {
-    geoIp: string;
-    geoSite: string;
-    geoBlock: boolean;
+export interface IConfig {
     socksPort: number;
     tunMtu: number;
 }
 
-interface IRoutingRules {
+export interface IGeoConfig {
+    geoIp: string;
+    geoSite: string;
+    geoBlock: boolean;
+}
+
+export interface IRoutingRules {
     ipSet: string[];
     domainSet: string[];
     domainSuffixSet: string[];
@@ -32,41 +45,33 @@ interface IRoutingRules {
 }
 
 class SingBoxManager {
-    private readonly configPath;
+    private helperClient: any;
 
-    private readonly isWindows = process.platform === 'win32';
+    private event?: IpcMainEvent;
 
     private appLang?: Language;
 
-    private oblivionHelperProto: any;
-
-    private helperClient: any;
+    private preGeoConfig?: IGeoConfig;
 
     private isListeningToHelper: boolean = false;
 
     private shouldBreakConnectionTest: boolean = false;
 
-    private event?: IpcMainEvent;
+    private readonly isWindows = process.platform === 'win32';
 
     private retryCount: number = 0;
 
-    constructor(
-        private readonly helperPath: string,
-        private readonly helperFileName: string,
-        private readonly sbWDFileName: string,
-        private readonly sbConfigName: string,
-        private readonly wpFileName: string,
-        private readonly workingDirPath: string,
-        private readonly protoAssetPath: string
-    ) {
-        this.configPath = path.join(this.workingDirPath, 'config.obv');
+    constructor() {
         this.initializeGrpcClient();
+        this.initializeGeoConfiguration().catch((err) =>
+            console.log('initializeGeoConfiguration Error:', err.message)
+        );
     }
 
     //Public-Methods
     public async startSingBox(appLang?: Language, event?: IpcMainEvent): Promise<boolean> {
         if (!this.event) this.event = event;
-        if (await this.isProcessRunning(this.sbWDFileName)) return true;
+        if (await this.isProcessRunning(sbWDFileName)) return true;
 
         this.appLang = appLang;
         this.retryCount = 0;
@@ -80,25 +85,19 @@ class SingBoxManager {
 
             return this.startService();
         } catch (error) {
-            this.sendMessageToRenderer(
-                'guide-toast',
-                `${this.appLang?.log.error_singbox_failed_start}\n${error}`
-            );
+            this.replyEvent(`${this.appLang?.log.error_singbox_failed_start}\n${error}`);
             log.error('Failed to start Sing-Box:', error);
             return false;
         }
     }
 
     public async stopSingBox(): Promise<boolean> {
-        if (!(await this.isProcessRunning(this.sbWDFileName))) return true;
+        if (!(await this.isProcessRunning(sbWDFileName))) return true;
 
         try {
             return this.stopService();
         } catch (error) {
-            this.sendMessageToRenderer(
-                'guide-toast',
-                `${this.appLang?.log.error_singbox_failed_stop}\n${error}`
-            );
+            this.replyEvent(`${this.appLang?.log.error_singbox_failed_stop}\n${error}`);
             log.error('Failed to stop Sing-Box:', error);
             return false;
         }
@@ -111,41 +110,89 @@ class SingBoxManager {
     }
 
     public async stopHelperOnStart(): Promise<void> {
-        if (await this.isProcessRunning(this.helperFileName)) {
+        if (await this.isProcessRunning(helperFileName)) {
             this.helperClient.Exit({}, () => {});
             await this.delay(4000);
             this.isListeningToHelper = false;
         }
     }
 
+    public checkConnectionStatus(): Promise<boolean> {
+        const maxAttempts = 10;
+        const checkInterval = 3000;
+        const timeout = 3000;
+
+        log.info('Waiting for connection...');
+
+        const checkStatus = async (attempt: number): Promise<boolean> => {
+            if (this.shouldBreakConnectionTest) return false;
+
+            const controller = new AbortController();
+            const timeoutId = setTimeout(() => controller.abort(), timeout);
+
+            try {
+                const response = await fetch('https://1.1.1.1/cdn-cgi/trace', {
+                    signal: controller.signal
+                });
+
+                if (response.ok && !this.shouldBreakConnectionTest) {
+                    await this.delay(1500);
+                    log.info(`Sing-Box connected successfully after ${attempt} attempts.`);
+                    return true;
+                }
+            } catch {
+                log.info(
+                    `Connection not yet established. Retry attempt ${attempt}/${maxAttempts}...`
+                );
+            } finally {
+                clearTimeout(timeoutId);
+            }
+
+            if (attempt >= maxAttempts) {
+                log.error(`Failed to establish Sing-Box connection after ${maxAttempts} attempts.`);
+                this.replyEvent(`${this.appLang?.log.error_failed_connection}`);
+                ipcMain.emit('wp-end');
+                return false;
+            }
+
+            await this.delay(checkInterval);
+            return checkStatus(attempt + 1);
+        };
+
+        return checkStatus(1);
+    }
+
     //Private-Methods
     private initializeGrpcClient(): void {
-        const packageDefinition = protoLoader.loadSync(this.protoAssetPath, {
+        const packageDefinition = protoLoader.loadSync(protoAssetPath, {
             keepCase: true,
             longs: String,
             enums: String,
             defaults: true,
             oneofs: true
         });
-        this.oblivionHelperProto = grpc.loadPackageDefinition(packageDefinition).oblivionHelper;
-        this.helperClient = new this.oblivionHelperProto.OblivionService(
+        const oblivionHelperProto: any =
+            grpc.loadPackageDefinition(packageDefinition).oblivionHelper;
+        this.helperClient = new oblivionHelperProto.OblivionService(
             '127.0.0.1:50051',
             grpc.credentials.createInsecure()
         );
     }
 
+    private async initializeGeoConfiguration(): Promise<void> {
+        this.preGeoConfig = await this.loadGeoConfiguration();
+    }
+
     private async ensureHelperIsRunning(): Promise<boolean> {
-        return (await this.isProcessRunning(this.helperFileName)) || this.startHelper();
+        return (await this.isProcessRunning(helperFileName)) || this.startHelper();
     }
 
     private async startHelper(): Promise<boolean> {
         return new Promise<boolean>((resolve, reject) => {
             log.info('Starting Oblivion-Helper...');
 
-            const command = this.getPlatformCommands().start(this.helperPath);
-            const helperProcess = spawn(command.command, command.args, {
-                cwd: this.workingDirPath
-            });
+            const command = this.getPlatformCommands().start(helperPath);
+            const helperProcess = spawn(command.command, command.args, { cwd: workingDirPath });
 
             helperProcess.stdout?.on('data', (data: Buffer) => {
                 if (process.platform === 'linux' && data.toString().includes('Server started on')) {
@@ -200,54 +247,6 @@ class SingBoxManager {
         });
     }
 
-    public checkConnectionStatus(): Promise<boolean> {
-        const maxAttempts = 10;
-        const checkInterval = 3000;
-        const timeout = 3000;
-
-        log.info('Waiting for connection...');
-
-        const checkStatus = async (attempt: number): Promise<boolean> => {
-            if (this.shouldBreakConnectionTest) return false;
-
-            const controller = new AbortController();
-            const timeoutId = setTimeout(() => controller.abort(), timeout);
-
-            try {
-                const response = await fetch('https://1.1.1.1/cdn-cgi/trace', {
-                    signal: controller.signal
-                });
-
-                if (response.ok && !this.shouldBreakConnectionTest) {
-                    await this.delay(1500);
-                    log.info(`Sing-Box connected successfully after ${attempt} attempts.`);
-                    return true;
-                }
-            } catch {
-                log.info(
-                    `Connection not yet established. Retry attempt ${attempt}/${maxAttempts}...`
-                );
-            } finally {
-                clearTimeout(timeoutId);
-            }
-
-            if (attempt >= maxAttempts) {
-                log.error(`Failed to establish Sing-Box connection after ${maxAttempts} attempts.`);
-                this.sendMessageToRenderer(
-                    'guide-toast',
-                    `${this.appLang?.log.error_faild_connection}`
-                );
-                ipcMain.emit('wp-end');
-                return false;
-            }
-
-            await this.delay(checkInterval);
-            return checkStatus(attempt + 1);
-        };
-
-        return checkStatus(1);
-    }
-
     private async monitorHelperStatus(): Promise<void> {
         if (!this.isListeningToHelper) {
             await this.delay(2000);
@@ -263,7 +262,7 @@ class SingBoxManager {
                 if (response.status === 'terminated') {
                     log.info('Sing-Box terminated unexpectedly. Restarting...');
                     customEvent.emit('tray-icon', 'disconnected');
-                    this.sendMessageToRenderer('guide-toast', 'sb_terminated');
+                    this.replyEvent('sb_terminated');
                     this.retryCount++;
 
                     if (this.retryCount <= 3) {
@@ -275,10 +274,10 @@ class SingBoxManager {
                             (await this.checkConnectionStatus())
                         ) {
                             customEvent.emit('tray-icon', 'connected-tun');
-                            this.sendMessageToRenderer('guide-toast', 'sb_restarted');
+                            this.replyEvent('sb_restarted');
                         }
                     } else {
-                        this.sendMessageToRenderer('guide-toast', 'sb_exceeded');
+                        this.replyEvent('sb_exceeded');
                         ipcMain.emit('wp-end');
                         log.warn('Exceeded maximum restart attempts.');
                     }
@@ -319,11 +318,11 @@ class SingBoxManager {
     private getPlatformCommands(): Record<string, (param: string) => ICommand> {
         const commands: Record<string, Record<string, (param: string) => ICommand>> = {
             darwin: {
-                start: (helperPath) => ({
+                start: (binPath) => ({
                     command: 'osascript',
                     args: [
                         '-e',
-                        `do shell script "\\"${helperPath}\\" > /dev/null 2>&1 & echo $! &" with administrator privileges`
+                        `do shell script "\\"${binPath}\\" > /dev/null 2>&1 & echo $! &" with administrator privileges`
                     ]
                 }),
                 running: (processName) => ({
@@ -331,11 +330,11 @@ class SingBoxManager {
                 })
             },
             win32: {
-                start: (helperPath) => ({
+                start: (binPath) => ({
                     command: 'powershell.exe',
                     args: [
                         '-Command',
-                        `Start-Process -FilePath '${helperPath.replace(/'/g, "''")}' -Verb RunAs -WindowStyle Hidden;`
+                        `Start-Process -FilePath '${binPath.replace(/'/g, "''")}' -Verb RunAs -WindowStyle Hidden;`
                     ]
                 }),
                 running: () => ({
@@ -343,9 +342,9 @@ class SingBoxManager {
                 })
             },
             linux: {
-                start: (helperPath) => ({
+                start: (binPath) => ({
                     command: 'pkexec',
-                    args: [helperPath]
+                    args: [binPath]
                 }),
                 running: (processName) => ({
                     command: `pgrep -l ${processName} | awk '{ print $2 }'`
@@ -364,89 +363,57 @@ class SingBoxManager {
     private async setupConfigs(): Promise<void> {
         log.info('Setting up configs...');
         const config = await this.loadConfiguration();
-        await this.setupGeoLists(config);
-        await this.createConfigFiles(config);
+        const geoConfig = await this.loadGeoConfiguration();
+        const routingRules = await settings.get('routingRules');
+        const rulesConfig = this.parseRoutingRules(routingRules);
+        if (
+            this.preGeoConfig &&
+            (this.preGeoConfig.geoBlock !== geoConfig.geoBlock ||
+                this.preGeoConfig.geoIp !== geoConfig.geoIp ||
+                this.preGeoConfig.geoSite !== geoConfig.geoSite) &&
+            fs.existsSync(sbCachePath)
+        ) {
+            fs.rmSync(sbCachePath);
+        }
+        this.preGeoConfig = geoConfig;
+
+        await this.createConfigFiles(config, geoConfig, rulesConfig);
     }
 
     private async loadConfiguration(): Promise<IConfig> {
-        const [port, ip, site, block, mtu] = await Promise.all([
-            settings.get('port'),
-            settings.get('singBoxGeoIp'),
-            settings.get('singBoxGeoSite'),
-            settings.get('singBoxGeoBlock'),
-            settings.get('singBoxMTU')
-        ]);
+        const [port, mtu] = await Promise.all([settings.get('port'), settings.get('singBoxMTU')]);
 
         return {
             socksPort: typeof port === 'number' ? port : defaultSettings.port,
-            tunMtu: typeof mtu === 'number' ? mtu : defaultSettings.singBoxMTU,
+            tunMtu: typeof mtu === 'number' ? mtu : defaultSettings.singBoxMTU
+        };
+    }
+
+    private async loadGeoConfiguration(): Promise<IGeoConfig> {
+        const [ip, site, block] = await Promise.all([
+            settings.get('singBoxGeoIp'),
+            settings.get('singBoxGeoSite'),
+            settings.get('singBoxGeoBlock')
+        ]);
+
+        return {
             geoIp: typeof ip === 'string' ? ip : singBoxGeoIp[0].geoIp,
             geoSite: typeof site === 'string' ? site : singBoxGeoSite[0].geoSite,
             geoBlock: typeof block === 'boolean' ? block : defaultSettings.singBoxGeoBlock
         };
     }
 
-    private async setupGeoLists(config: IConfig): Promise<void> {
-        const { geoIp, geoSite, geoBlock } = config;
+    private async createConfigFiles(
+        config: IConfig,
+        geoConfig: IGeoConfig,
+        rulesConfig: IRoutingRules
+    ): Promise<void> {
+        createSbConfig(config, geoConfig, rulesConfig);
 
-        if (geoIp !== 'none') {
-            const hasExported = await this.exportGeoList(`geoip export ${geoIp} -f geoip.db`);
-            log.info(`GeoIp: ${geoIp} => ${hasExported}`);
-        }
+        const helperConfig = { sbConfig: sbConfigName, sbBin: sbWDFileName };
 
-        if (geoSite !== 'none') {
-            const hasExported = await this.exportGeoList(`geosite export ${geoSite} -f geosite.db`);
-            log.info(`GeoSite: ${geoSite} => ${hasExported}`);
-        }
-
-        if (geoBlock) {
-            await this.setupSecurityLists();
-        }
-    }
-
-    private async setupSecurityLists(): Promise<void> {
-        const securityTasks = [
-            ['geoip', 'malware', 'security-ip.db'],
-            ['geoip', 'phishing', 'security-ip.db'],
-            ['geosite', 'malware', 'security.db'],
-            ['geosite', 'cryptominers', 'security.db'],
-            ['geosite', 'phishing', 'security.db'],
-            ['geosite', 'category-ads-all', 'security.db']
-        ];
-
-        await Promise.all(
-            securityTasks.map(async ([type, category, file]) => {
-                const hasExported = await this.exportGeoList(
-                    `${type} export ${category} -f ${file}`
-                );
-                log.info(`GeoBlock: ${type}/${category} => ${hasExported}`);
-            })
-        );
-    }
-
-    private async createConfigFiles(config: IConfig): Promise<void> {
-        const routingRules = await settings.get('routingRules');
-        const rules = this.parseRoutingRules(routingRules);
-
-        createSbConfig(
-            config.socksPort,
-            config.tunMtu,
-            config.geoBlock,
-            config.geoIp,
-            config.geoSite,
-            rules.ipSet,
-            rules.domainSet,
-            rules.domainSuffixSet,
-            rules.processSet
-        );
-
-        const helperConfig = {
-            sbConfig: this.sbConfigName,
-            sbBin: this.sbWDFileName
-        };
-
-        fs.writeFileSync(this.configPath, JSON.stringify(helperConfig, null, 2), 'utf-8');
-        log.info(`Helper config file has been created at ${this.configPath}`);
+        fs.writeFileSync(helperConfigPath, JSON.stringify(helperConfig, null, 2), 'utf-8');
+        log.info(`Helper config file has been created at ${helperConfigPath}`);
     }
 
     private parseRoutingRules(routingRules: any): IRoutingRules {
@@ -454,7 +421,7 @@ class SingBoxManager {
             ipSet: [],
             domainSet: [],
             domainSuffixSet: [],
-            processSet: [this.wpFileName]
+            processSet: [wpFileName]
         };
 
         if (typeof routingRules !== 'string' || routingRules.trim() === '') {
@@ -505,23 +472,9 @@ class SingBoxManager {
         result.processSet.push(app);
     }
 
-    private exportGeoList(args: string): Promise<boolean> {
-        return new Promise<boolean>((resolve) => {
-            const command = path
-                .join(this.workingDirPath, this.sbWDFileName)
-                .replace(/(\s+)/g, '\\$1');
-            exec(`${command} ${args}`, { cwd: this.workingDirPath }, (err: any) => {
-                if (err) {
-                    resolve(false);
-                }
-                resolve(true);
-            });
-        });
-    }
-
-    private sendMessageToRenderer(channel: string, message: string): void {
+    private replyEvent(message: string): void {
         if (this.event) {
-            this.event.reply(channel, message);
+            this.event.reply('guide-toast', message);
         }
     }
 }
