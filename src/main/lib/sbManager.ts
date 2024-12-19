@@ -57,9 +57,17 @@ class SingBoxManager {
 
     private shouldBreakConnectionTest: boolean = false;
 
+    private retryCount: number = 0;
+
     private readonly isWindows = process.platform === 'win32';
 
-    private retryCount: number = 0;
+    private readonly isLinux = process.platform === 'linux';
+
+    private static readonly MAX_ATTEMPTS = 10;
+
+    private static readonly CHECK_INTERVAL = 3000;
+
+    private static readonly TIMEOUT = 3000;
 
     constructor() {
         this.initializeGrpcClient();
@@ -118,17 +126,13 @@ class SingBoxManager {
     }
 
     public checkConnectionStatus(): Promise<boolean> {
-        const maxAttempts = 10;
-        const checkInterval = 3000;
-        const timeout = 3000;
-
         log.info('Waiting for connection...');
 
         const checkStatus = async (attempt: number): Promise<boolean> => {
             if (this.shouldBreakConnectionTest) return false;
 
             const controller = new AbortController();
-            const timeoutId = setTimeout(() => controller.abort(), timeout);
+            const timeoutId = setTimeout(() => controller.abort(), SingBoxManager.TIMEOUT);
 
             try {
                 const response = await fetch('https://1.1.1.1/cdn-cgi/trace', {
@@ -142,20 +146,22 @@ class SingBoxManager {
                 }
             } catch {
                 log.info(
-                    `Connection not yet established. Retry attempt ${attempt}/${maxAttempts}...`
+                    `Connection not yet established. Retry attempt ${attempt}/${SingBoxManager.MAX_ATTEMPTS}...`
                 );
             } finally {
                 clearTimeout(timeoutId);
             }
 
-            if (attempt >= maxAttempts) {
-                log.error(`Failed to establish Sing-Box connection after ${maxAttempts} attempts.`);
+            if (attempt >= SingBoxManager.MAX_ATTEMPTS) {
+                log.error(
+                    `Failed to establish Sing-Box connection after ${SingBoxManager.MAX_ATTEMPTS} attempts.`
+                );
                 this.replyEvent(`${this.appLang?.log.error_failed_connection}`);
                 ipcMain.emit('wp-end');
                 return false;
             }
 
-            await this.delay(checkInterval);
+            await this.delay(SingBoxManager.CHECK_INTERVAL);
             return checkStatus(attempt + 1);
         };
 
@@ -195,7 +201,7 @@ class SingBoxManager {
             const helperProcess = spawn(command.command, command.args, { cwd: workingDirPath });
 
             helperProcess.stdout?.on('data', (data: Buffer) => {
-                if (process.platform === 'linux' && data.toString().includes('Server started on')) {
+                if (this.isLinux && data.toString().includes('Server started on')) {
                     resolve(true);
                 }
             });
@@ -208,7 +214,7 @@ class SingBoxManager {
             });
 
             helperProcess.on('close', async (code) => {
-                if (process.platform !== 'linux' && code === 0) {
+                if (!this.isLinux && code === 0) {
                     resolve(true);
                 }
             });

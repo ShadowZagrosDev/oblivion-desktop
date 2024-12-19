@@ -17,10 +17,8 @@ import {
     checkIpType
 } from '../lib/utils';
 import packageJsonData from '../../../package.json';
-import { binAssetPath } from '../constants';
+import { binAssetPath, logPath } from '../constants';
 import { wpVersion, sbVersion, helperVersion } from '../config';
-
-export const logPath = path.join(app?.getPath('logs'), 'main.log');
 
 export function readLogFile(value: string) {
     return new Promise((resolve, reject) => {

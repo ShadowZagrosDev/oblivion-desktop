@@ -1,8 +1,10 @@
 import fs from 'fs';
 import log from 'electron-log';
-import { sbConfigPath, sbCacheName } from '../constants';
 import { disableSbLogs } from '../dxConfig';
-import { IConfig, IGeoConfig, IRoutingRules } from './sbManager';
+import { sbConfigPath, sbCacheName, IConfig, IGeoConfig, IRoutingRules } from '../constants';
+
+const ruleSetBaseUrl =
+    'https://raw.githubusercontent.com/Chocolate4U/Iran-sing-box-rules/rule-set/';
 
 export function createSbConfig(config: IConfig, geoConfig: IGeoConfig, rulesConfig: IRoutingRules) {
     const logConfig = disableSbLogs
@@ -203,7 +205,7 @@ export function createSbConfig(config: IConfig, geoConfig: IGeoConfig, rulesConf
                               tag: `geoip-${geoConfig.geoIp}`,
                               type: 'remote',
                               format: 'binary',
-                              url: `https://raw.githubusercontent.com/Chocolate4U/Iran-sing-box-rules/rule-set/geoip-${geoConfig.geoIp}.srs`,
+                              url: `${ruleSetBaseUrl}geoip-${geoConfig.geoIp}.srs`,
                               download_detour: 'direct-out',
                               update_interval: '3d'
                           }
@@ -215,7 +217,7 @@ export function createSbConfig(config: IConfig, geoConfig: IGeoConfig, rulesConf
                               tag: `geosite-${geoConfig.geoSite}`,
                               type: 'remote',
                               format: 'binary',
-                              url: `https://raw.githubusercontent.com/Chocolate4U/Iran-sing-box-rules/rule-set/geosite-${geoConfig.geoSite}.srs`,
+                              url: `${ruleSetBaseUrl}geosite-${geoConfig.geoSite}.srs`,
                               download_detour: 'direct-out',
                               update_interval: '3d'
                           }
@@ -227,7 +229,7 @@ export function createSbConfig(config: IConfig, geoConfig: IGeoConfig, rulesConf
                               tag: 'geosite-category-ads-all',
                               type: 'remote',
                               format: 'binary',
-                              url: 'https://raw.githubusercontent.com/Chocolate4U/Iran-sing-box-rules/rule-set/geosite-category-ads-all.srs',
+                              url: `${ruleSetBaseUrl}geosite-category-ads-all.srs`,
                               download_detour: 'direct-out',
                               update_interval: '3d'
                           },
@@ -235,7 +237,7 @@ export function createSbConfig(config: IConfig, geoConfig: IGeoConfig, rulesConf
                               tag: 'geosite-malware',
                               type: 'remote',
                               format: 'binary',
-                              url: 'https://raw.githubusercontent.com/Chocolate4U/Iran-sing-box-rules/rule-set/geosite-malware.srs',
+                              url: `${ruleSetBaseUrl}geosite-malware.srs`,
                               download_detour: 'direct-out',
                               update_interval: '3d'
                           },
@@ -243,7 +245,7 @@ export function createSbConfig(config: IConfig, geoConfig: IGeoConfig, rulesConf
                               tag: 'geosite-phishing',
                               type: 'remote',
                               format: 'binary',
-                              url: 'https://raw.githubusercontent.com/Chocolate4U/Iran-sing-box-rules/rule-set/geosite-phishing.srs',
+                              url: `${ruleSetBaseUrl}geosite-phishing.srs`,
                               download_detour: 'direct-out',
                               update_interval: '3d'
                           },
@@ -251,7 +253,7 @@ export function createSbConfig(config: IConfig, geoConfig: IGeoConfig, rulesConf
                               tag: 'geosite-cryptominers',
                               type: 'remote',
                               format: 'binary',
-                              url: 'https://raw.githubusercontent.com/Chocolate4U/Iran-sing-box-rules/rule-set/geosite-cryptominers.srs',
+                              url: `${ruleSetBaseUrl}geosite-cryptominers.srs`,
                               download_detour: 'direct-out',
                               update_interval: '3d'
                           },
@@ -259,7 +261,7 @@ export function createSbConfig(config: IConfig, geoConfig: IGeoConfig, rulesConf
                               tag: 'geoip-malware',
                               type: 'remote',
                               format: 'binary',
-                              url: 'https://raw.githubusercontent.com/Chocolate4U/Iran-sing-box-rules/rule-set/geoip-malware.srs',
+                              url: `${ruleSetBaseUrl}geoip-malware.srs`,
                               download_detour: 'direct-out',
                               update_interval: '3d'
                           },
@@ -267,7 +269,7 @@ export function createSbConfig(config: IConfig, geoConfig: IGeoConfig, rulesConf
                               tag: 'geoip-phishing',
                               type: 'remote',
                               format: 'binary',
-                              url: 'https://raw.githubusercontent.com/Chocolate4U/Iran-sing-box-rules/rule-set/geoip-phishing.srs',
+                              url: `${ruleSetBaseUrl}geoip-phishing.srs`,
                               download_detour: 'direct-out',
                               update_interval: '3d'
                           }
