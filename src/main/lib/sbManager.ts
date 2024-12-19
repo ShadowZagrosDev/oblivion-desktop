@@ -18,7 +18,9 @@ import {
     helperConfigPath,
     protoAssetPath,
     helperPath,
-    workingDirPath
+    workingDirPath,
+    isWindows,
+    isLinux
 } from '../constants';
 
 interface ICommand {
@@ -58,10 +60,6 @@ class SingBoxManager {
     private shouldBreakConnectionTest: boolean = false;
 
     private retryCount: number = 0;
-
-    private readonly isWindows = process.platform === 'win32';
-
-    private readonly isLinux = process.platform === 'linux';
 
     private static readonly MAX_ATTEMPTS = 10;
 
@@ -201,7 +199,7 @@ class SingBoxManager {
             const helperProcess = spawn(command.command, command.args, { cwd: workingDirPath });
 
             helperProcess.stdout?.on('data', (data: Buffer) => {
-                if (this.isLinux && data.toString().includes('Server started on')) {
+                if (isLinux && data.toString().includes('Server started on')) {
                     resolve(true);
                 }
             });
@@ -214,7 +212,7 @@ class SingBoxManager {
             });
 
             helperProcess.on('close', async (code) => {
-                if (!this.isLinux && code === 0) {
+                if (!isLinux && code === 0) {
                     resolve(true);
                 }
             });
@@ -283,6 +281,7 @@ class SingBoxManager {
                             this.replyEvent('sb_restarted');
                         }
                     } else {
+                        this.shouldBreakConnectionTest = true;
                         this.replyEvent('sb_exceeded');
                         ipcMain.emit('wp-end');
                         log.warn('Exceeded maximum restart attempts.');
@@ -474,7 +473,7 @@ class SingBoxManager {
     }
 
     private processAppRule(value: string, result: IRoutingRules): void {
-        const app = this.isWindows && !value.endsWith('.exe') ? `${value}.exe` : value;
+        const app = isWindows && !value.endsWith('.exe') ? `${value}.exe` : value;
         result.processSet.push(app);
     }
 

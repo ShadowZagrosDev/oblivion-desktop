@@ -14,6 +14,11 @@ export const netStatsFileName = `zag-netStats${process.platform === 'win32' ? '.
 export const sbConfigName = 'sbConfig.json';
 export const sbCacheName = 'sbCache.db';
 
+//Platforms
+export const isWindows = process.platform === 'win32';
+export const isLinux = process.platform === 'linux';
+export const isDarwin = process.platform === 'darwin';
+
 // Paths
 const appPath = app.getAppPath().replace('/app.asar', '').replace('\\app.asar', '');
 export const binAssetPath = path.join(appPath, 'assets', 'bin');
@@ -41,6 +46,14 @@ export const logPath = path.join(app?.getPath('logs'), 'main.log');
 export const singBoxManager = new SingBoxManager();
 export const networkMonitor = new NetworkMonitor();
 export const speedTestManager = new SpeedTestManager();
+
+//SingBox RuleSet
+export const ruleSetBaseUrl =
+    'https://raw.githubusercontent.com/Chocolate4U/Iran-sing-box-rules/rule-set/';
+export const ruleSetType = 'remote';
+export const ruleSetFormat = 'binary';
+export const ruleSetDownloadDetour = isDarwin ? 'direct-out' : 'socks-out';
+export const ruleSetUpdateInterval = '7d';
 
 //Interfaces
 export interface INetStats {

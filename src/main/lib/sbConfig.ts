@@ -1,10 +1,19 @@
 import fs from 'fs';
 import log from 'electron-log';
 import { disableSbLogs } from '../dxConfig';
-import { sbConfigPath, sbCacheName, IConfig, IGeoConfig, IRoutingRules } from '../constants';
-
-const ruleSetBaseUrl =
-    'https://raw.githubusercontent.com/Chocolate4U/Iran-sing-box-rules/rule-set/';
+import {
+    sbConfigPath,
+    sbCacheName,
+    IConfig,
+    IGeoConfig,
+    IRoutingRules,
+    isDarwin,
+    ruleSetType,
+    ruleSetFormat,
+    ruleSetBaseUrl,
+    ruleSetDownloadDetour,
+    ruleSetUpdateInterval
+} from '../constants';
 
 export function createSbConfig(config: IConfig, geoConfig: IGeoConfig, rulesConfig: IRoutingRules) {
     const logConfig = disableSbLogs
@@ -87,8 +96,8 @@ export function createSbConfig(config: IConfig, geoConfig: IGeoConfig, rulesConf
                 auto_route: true,
                 strict_route: true,
                 stack: 'mixed',
-                sniff: process.platform === 'darwin',
-                sniff_override_destination: process.platform === 'darwin'
+                sniff: isDarwin,
+                sniff_override_destination: isDarwin
             }
         ],
         outbounds: [
@@ -122,7 +131,7 @@ export function createSbConfig(config: IConfig, geoConfig: IGeoConfig, rulesConf
                     inbound: ['dns-in'],
                     outbound: 'dns-out'
                 },
-                ...(process.platform === 'darwin'
+                ...(isDarwin
                     ? [
                           {
                               network: 'udp',
@@ -203,11 +212,11 @@ export function createSbConfig(config: IConfig, geoConfig: IGeoConfig, rulesConf
                     ? [
                           {
                               tag: `geoip-${geoConfig.geoIp}`,
-                              type: 'remote',
-                              format: 'binary',
+                              type: ruleSetType,
+                              format: ruleSetFormat,
                               url: `${ruleSetBaseUrl}geoip-${geoConfig.geoIp}.srs`,
-                              download_detour: 'direct-out',
-                              update_interval: '3d'
+                              download_detour: ruleSetDownloadDetour,
+                              update_interval: ruleSetUpdateInterval
                           }
                       ]
                     : []),
@@ -215,11 +224,11 @@ export function createSbConfig(config: IConfig, geoConfig: IGeoConfig, rulesConf
                     ? [
                           {
                               tag: `geosite-${geoConfig.geoSite}`,
-                              type: 'remote',
-                              format: 'binary',
+                              type: ruleSetType,
+                              format: ruleSetFormat,
                               url: `${ruleSetBaseUrl}geosite-${geoConfig.geoSite}.srs`,
-                              download_detour: 'direct-out',
-                              update_interval: '3d'
+                              download_detour: ruleSetDownloadDetour,
+                              update_interval: ruleSetUpdateInterval
                           }
                       ]
                     : []),
@@ -227,51 +236,51 @@ export function createSbConfig(config: IConfig, geoConfig: IGeoConfig, rulesConf
                     ? [
                           {
                               tag: 'geosite-category-ads-all',
-                              type: 'remote',
-                              format: 'binary',
+                              type: ruleSetType,
+                              format: ruleSetFormat,
                               url: `${ruleSetBaseUrl}geosite-category-ads-all.srs`,
-                              download_detour: 'direct-out',
-                              update_interval: '3d'
+                              download_detour: ruleSetDownloadDetour,
+                              update_interval: ruleSetUpdateInterval
                           },
                           {
                               tag: 'geosite-malware',
-                              type: 'remote',
-                              format: 'binary',
+                              type: ruleSetType,
+                              format: ruleSetFormat,
                               url: `${ruleSetBaseUrl}geosite-malware.srs`,
-                              download_detour: 'direct-out',
-                              update_interval: '3d'
+                              download_detour: ruleSetDownloadDetour,
+                              update_interval: ruleSetUpdateInterval
                           },
                           {
                               tag: 'geosite-phishing',
-                              type: 'remote',
-                              format: 'binary',
+                              type: ruleSetType,
+                              format: ruleSetFormat,
                               url: `${ruleSetBaseUrl}geosite-phishing.srs`,
-                              download_detour: 'direct-out',
-                              update_interval: '3d'
+                              download_detour: ruleSetDownloadDetour,
+                              update_interval: ruleSetUpdateInterval
                           },
                           {
                               tag: 'geosite-cryptominers',
-                              type: 'remote',
-                              format: 'binary',
+                              type: ruleSetType,
+                              format: ruleSetFormat,
                               url: `${ruleSetBaseUrl}geosite-cryptominers.srs`,
-                              download_detour: 'direct-out',
-                              update_interval: '3d'
+                              download_detour: ruleSetDownloadDetour,
+                              update_interval: ruleSetUpdateInterval
                           },
                           {
                               tag: 'geoip-malware',
-                              type: 'remote',
-                              format: 'binary',
+                              type: ruleSetType,
+                              format: ruleSetFormat,
                               url: `${ruleSetBaseUrl}geoip-malware.srs`,
-                              download_detour: 'direct-out',
-                              update_interval: '3d'
+                              download_detour: ruleSetDownloadDetour,
+                              update_interval: ruleSetUpdateInterval
                           },
                           {
                               tag: 'geoip-phishing',
-                              type: 'remote',
-                              format: 'binary',
+                              type: ruleSetType,
+                              format: ruleSetFormat,
                               url: `${ruleSetBaseUrl}geoip-phishing.srs`,
-                              download_detour: 'direct-out',
-                              update_interval: '3d'
+                              download_detour: ruleSetDownloadDetour,
+                              update_interval: ruleSetUpdateInterval
                           }
                       ]
                     : [])
