@@ -88,10 +88,7 @@ const parseConnectionConfig = (pastedText: string): ConfigType | null => {
     const location = validateCountry(params?.get('c') || '', method);
     const license = validateLicense(params?.get('l') || '');
     const reserved = validateReserved(params?.get('r') || '');
-    const ipType = determineIpType(
-        endpoint,
-        params?.get('i') || ''
-    );
+    const ipType = determineIpType(endpoint, params?.get('i') || '');
 
     return {
         method,
@@ -170,8 +167,7 @@ const ConfigHandler = ({ appLang }: any) => {
                     // wp-start
                     toast.remove('CONFIG_HANDLER');
                 }, 7000);
-            }
-            else {
+            } else {
                 //console.log(config)
             }
             event.preventDefault();
