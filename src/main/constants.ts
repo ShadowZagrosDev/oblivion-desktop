@@ -17,12 +17,12 @@ export const sbCacheName = 'sbCache.db';
 // Paths
 const appPath = app.getAppPath().replace('/app.asar', '').replace('\\app.asar', '');
 export const binAssetPath = path.join(appPath, 'assets', 'bin');
-export const wpAssetPath = path.join(appPath, 'assets', 'bin', wpFileName);
-export const sbAssetPath = path.join(appPath, 'assets', 'bin', 'sing-box', sbAssetFileName);
-export const helperAssetPath = path.join(appPath, 'assets', 'bin', helperFileName);
-export const netStatsAssetPath = path.join(appPath, 'assets', 'bin', netStatsFileName);
+export const wpAssetPath = path.join(binAssetPath, wpFileName);
+export const sbAssetPath = path.join(binAssetPath, 'sing-box', sbAssetFileName);
+export const helperAssetPath = path.join(binAssetPath, helperFileName);
+export const netStatsAssetPath = path.join(binAssetPath, netStatsFileName);
+export const regeditVbsDirPath = path.join(binAssetPath, 'vbs');
 export const protoAssetPath = path.join(appPath, 'assets', 'proto', 'oblivion.proto');
-export const regeditVbsDirPath = path.join(appPath, 'vbs');
 
 export const workingDirPath = app.getPath('userData');
 export const wpBinPath = path.join(workingDirPath, wpFileName);
