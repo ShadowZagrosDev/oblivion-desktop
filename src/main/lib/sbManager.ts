@@ -61,6 +61,8 @@ class SingBoxManager {
 
     private retryCount: number = 0;
 
+    private responseStatus: string = '';
+
     private static readonly MAX_ATTEMPTS = 10;
 
     private static readonly CHECK_INTERVAL = 3000;
@@ -262,8 +264,9 @@ class SingBoxManager {
             this.isListeningToHelper = true;
 
             call.on('data', async (response: { status: string }) => {
-                log.info('Oblivion-Helper Status:', response.status);
-                if (response.status === 'terminated') {
+                this.responseStatus = response.status;
+                log.info('Oblivion-Helper Status:', this.responseStatus);
+                if (this.responseStatus === 'terminated') {
                     log.info('Sing-Box terminated unexpectedly. Restarting...');
                     customEvent.emit('tray-icon', 'disconnected');
                     this.replyEvent('sb_terminated');
@@ -271,17 +274,16 @@ class SingBoxManager {
 
                     if (this.retryCount <= 3) {
                         const isStarted = await this.startService();
-                        await this.delay(3000);
+                        await this.delay(5000);
                         if (
                             isStarted &&
-                            this.retryCount <= 3 &&
+                            this.responseStatus !== 'terminated' && 
                             (await this.checkConnectionStatus())
                         ) {
                             customEvent.emit('tray-icon', 'connected-tun');
                             this.replyEvent('sb_restarted');
                         }
                     } else {
-                        this.shouldBreakConnectionTest = true;
                         this.replyEvent('sb_exceeded');
                         ipcMain.emit('wp-end');
                         log.warn('Exceeded maximum restart attempts.');

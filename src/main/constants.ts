@@ -4,20 +4,20 @@ import SingBoxManager from './lib/sbManager';
 import NetworkMonitor from './lib/netStatsManager';
 import SpeedTestManager from './lib/speedTestManager';
 
-// Constants
-export const appVersion = app.getVersion();
-export const wpFileName = `warp-plus${process.platform === 'win32' ? '.exe' : ''}`;
-export const sbAssetFileName = `sing-box${process.platform === 'win32' ? '.exe' : ''}`;
-export const sbWDFileName = `oblivion-sb${process.platform === 'win32' ? '.exe' : ''}`;
-export const helperFileName = `oblivion-helper${process.platform === 'win32' ? '.exe' : ''}`;
-export const netStatsFileName = `zag-netStats${process.platform === 'win32' ? '.exe' : ''}`;
-export const sbConfigName = 'sbConfig.json';
-export const sbCacheName = 'sbCache.db';
-
 //Platforms
 export const isWindows = process.platform === 'win32';
 export const isLinux = process.platform === 'linux';
 export const isDarwin = process.platform === 'darwin';
+
+// Constants
+export const appVersion = app.getVersion();
+export const wpFileName = `warp-plus${isWindows ? '.exe' : ''}`;
+export const sbAssetFileName = `sing-box${isWindows ? '.exe' : ''}`;
+export const sbWDFileName = `oblivion-sb${isWindows ? '.exe' : ''}`;
+export const helperFileName = `oblivion-helper${isWindows ? '.exe' : ''}`;
+export const netStatsFileName = `zag-netStats${isWindows ? '.exe' : ''}`;
+export const sbConfigName = 'sbConfig.json';
+export const sbCacheName = 'sbCache.db';
 
 // Paths
 const appPath = app.getAppPath().replace('/app.asar', '').replace('\\app.asar', '');
@@ -52,7 +52,7 @@ export const ruleSetBaseUrl =
     'https://raw.githubusercontent.com/Chocolate4U/Iran-sing-box-rules/rule-set/';
 export const ruleSetType = 'remote';
 export const ruleSetFormat = 'binary';
-export const ruleSetDownloadDetour = isDarwin ? 'direct-out' : 'socks-out';
+//export const ruleSetDownloadDetour = isDarwin ? 'direct-out' : 'socks-out';
 export const ruleSetUpdateInterval = '7d';
 
 //Interfaces

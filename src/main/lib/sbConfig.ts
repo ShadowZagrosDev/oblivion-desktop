@@ -11,7 +11,6 @@ import {
     ruleSetType,
     ruleSetFormat,
     ruleSetBaseUrl,
-    ruleSetDownloadDetour,
     ruleSetUpdateInterval
 } from '../constants';
 
@@ -215,7 +214,7 @@ export function createSbConfig(config: IConfig, geoConfig: IGeoConfig, rulesConf
                               type: ruleSetType,
                               format: ruleSetFormat,
                               url: `${ruleSetBaseUrl}geoip-${geoConfig.geoIp}.srs`,
-                              download_detour: ruleSetDownloadDetour,
+                              ...(isDarwin ? { download_detour: 'direct-out' } : {}),
                               update_interval: ruleSetUpdateInterval
                           }
                       ]
@@ -227,7 +226,7 @@ export function createSbConfig(config: IConfig, geoConfig: IGeoConfig, rulesConf
                               type: ruleSetType,
                               format: ruleSetFormat,
                               url: `${ruleSetBaseUrl}geosite-${geoConfig.geoSite}.srs`,
-                              download_detour: ruleSetDownloadDetour,
+                              ...(isDarwin ? { download_detour: 'direct-out' } : {}),
                               update_interval: ruleSetUpdateInterval
                           }
                       ]
@@ -239,7 +238,7 @@ export function createSbConfig(config: IConfig, geoConfig: IGeoConfig, rulesConf
                               type: ruleSetType,
                               format: ruleSetFormat,
                               url: `${ruleSetBaseUrl}geosite-category-ads-all.srs`,
-                              download_detour: ruleSetDownloadDetour,
+                              ...(isDarwin ? { download_detour: 'direct-out' } : {}),
                               update_interval: ruleSetUpdateInterval
                           },
                           {
@@ -247,7 +246,7 @@ export function createSbConfig(config: IConfig, geoConfig: IGeoConfig, rulesConf
                               type: ruleSetType,
                               format: ruleSetFormat,
                               url: `${ruleSetBaseUrl}geosite-malware.srs`,
-                              download_detour: ruleSetDownloadDetour,
+                              ...(isDarwin ? { download_detour: 'direct-out'} : {}),
                               update_interval: ruleSetUpdateInterval
                           },
                           {
@@ -255,7 +254,7 @@ export function createSbConfig(config: IConfig, geoConfig: IGeoConfig, rulesConf
                               type: ruleSetType,
                               format: ruleSetFormat,
                               url: `${ruleSetBaseUrl}geosite-phishing.srs`,
-                              download_detour: ruleSetDownloadDetour,
+                              ...(isDarwin ? { download_detour: 'direct-out' } : {}),
                               update_interval: ruleSetUpdateInterval
                           },
                           {
@@ -263,7 +262,7 @@ export function createSbConfig(config: IConfig, geoConfig: IGeoConfig, rulesConf
                               type: ruleSetType,
                               format: ruleSetFormat,
                               url: `${ruleSetBaseUrl}geosite-cryptominers.srs`,
-                              download_detour: ruleSetDownloadDetour,
+                              ...(isDarwin ? { download_detour: 'direct-out'} : {}),
                               update_interval: ruleSetUpdateInterval
                           },
                           {
@@ -271,7 +270,7 @@ export function createSbConfig(config: IConfig, geoConfig: IGeoConfig, rulesConf
                               type: ruleSetType,
                               format: ruleSetFormat,
                               url: `${ruleSetBaseUrl}geoip-malware.srs`,
-                              download_detour: ruleSetDownloadDetour,
+                              ...(isDarwin ? { download_detour: 'direct-out' } : {}),
                               update_interval: ruleSetUpdateInterval
                           },
                           {
@@ -279,7 +278,7 @@ export function createSbConfig(config: IConfig, geoConfig: IGeoConfig, rulesConf
                               type: ruleSetType,
                               format: ruleSetFormat,
                               url: `${ruleSetBaseUrl}geoip-phishing.srs`,
-                              download_detour: ruleSetDownloadDetour,
+                              ...(isDarwin ? { download_detour: 'direct-out' } : {}),
                               update_interval: ruleSetUpdateInterval
                           }
                       ]

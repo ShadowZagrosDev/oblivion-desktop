@@ -206,13 +206,14 @@ const useLanding = () => {
                 loadingToast(appLang.status.keep_trying);
                 setTimeout(function () {
                     stopLoadingToast();
-                }, 3500);
+                }, 5000);
             } else if (message === 'sb_restarted') {
                 setIsLoading(false);
                 setIsConnected(true);
             } else if (message === 'sb_exceeded') {
                 setIsLoading(false);
                 setIsConnected(false);
+                stopLoadingToast();
                 setTimeout(function () {
                     defaultToast(appLang.log.error_deadline_exceeded, 'EXCEEDED', 5000);
                 }, 2000);
