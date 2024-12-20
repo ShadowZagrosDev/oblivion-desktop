@@ -284,6 +284,7 @@ class SingBoxManager {
                             this.replyEvent('sb_restarted');
                         }
                     } else {
+                        this.shouldBreakConnectionTest = true;
                         this.replyEvent('sb_exceeded');
                         ipcMain.emit('wp-end');
                         log.warn('Exceeded maximum restart attempts.');
