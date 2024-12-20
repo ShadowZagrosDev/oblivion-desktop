@@ -246,7 +246,7 @@ export function createSbConfig(config: IConfig, geoConfig: IGeoConfig, rulesConf
                               type: ruleSetType,
                               format: ruleSetFormat,
                               url: `${ruleSetBaseUrl}geosite-malware.srs`,
-                              ...(isDarwin ? { download_detour: 'direct-out'} : {}),
+                              ...(isDarwin ? { download_detour: 'direct-out' } : {}),
                               update_interval: ruleSetUpdateInterval
                           },
                           {
@@ -262,7 +262,7 @@ export function createSbConfig(config: IConfig, geoConfig: IGeoConfig, rulesConf
                               type: ruleSetType,
                               format: ruleSetFormat,
                               url: `${ruleSetBaseUrl}geosite-cryptominers.srs`,
-                              ...(isDarwin ? { download_detour: 'direct-out'} : {}),
+                              ...(isDarwin ? { download_detour: 'direct-out' } : {}),
                               update_interval: ruleSetUpdateInterval
                           },
                           {

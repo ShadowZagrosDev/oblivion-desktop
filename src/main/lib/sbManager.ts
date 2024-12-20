@@ -277,7 +277,7 @@ class SingBoxManager {
                         await this.delay(5000);
                         if (
                             isStarted &&
-                            this.responseStatus !== 'terminated' && 
+                            this.responseStatus !== 'terminated' &&
                             (await this.checkConnectionStatus())
                         ) {
                             customEvent.emit('tray-icon', 'connected-tun');
